@@ -43,10 +43,10 @@ def get_optimal_tree_method(force_gpu: bool = True) -> str:
     has_gpu, gpu_info = check_gpu_availability()
 
     if has_gpu or force_gpu:
-        print(f"🚀 GPU Mode: {gpu_info}")
+        print(f"GPU Mode: {gpu_info}")
         return 'hist'  # GPU-compatible method
     else:
-        print(f"⚠️  CPU Mode: {gpu_info}")
+        print(f"CPU Mode: {gpu_info}")
         return 'hist'  # Still works on CPU
 
 
@@ -75,7 +75,7 @@ def train_xgboost_regressor(
     if verbose:
         print(f"\n{gpu_info}")
         if use_gpu and not has_gpu:
-            print("⚠️  GPU requested but not available, falling back to CPU")
+            print("GPU requested but not available, falling back to CPU")
             use_gpu = False
 
     # Default parameters with GPU optimization
@@ -87,7 +87,7 @@ def train_xgboost_regressor(
 
             # Objective & Metrics
             'objective': 'reg:squarederror',
-            'eval_metric': 'rmse',
+            'eval_metric': ['rmse', 'mae'],
 
             # Model Complexity
             'max_depth': 8,
@@ -98,7 +98,7 @@ def train_xgboost_regressor(
             # Regularization
             'lambda': 1.0,  # L2 regularization
             'alpha': 0.1,  # L1 regularization
-            'min_child_weight': 5,
+            'min_child_weight': 10,
 
             # GPU-specific optimizations
             'max_bin': 256 if use_gpu else 256,  # Histogram bins (higher = more memory)
@@ -132,13 +132,13 @@ def train_xgboost_regressor(
         X_train,
         label=y_train,
         weight=w_train,
-        enable_categorical=False  # Set True if you have categorical features
+        enable_categorical=True  # Set True if you have categorical features
     )
     dtest = xgb.DMatrix(
         X_test,
         label=y_test,
         weight=w_test,
-        enable_categorical=False
+        enable_categorical=True
     )
 
     # Train with GPU
