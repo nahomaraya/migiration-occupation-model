@@ -1,6 +1,6 @@
 # main.py
-from data_preprocessing import preprocess_data_xgboost
-from xgboost_model import train_xgboost_regressor, train_xgboost_classifier
+from preprocessing.preprocess_data import preprocess_data_xgboost
+from models.xgboost import train_xgboost_regressor, train_xgboost_classifier
 
 
 def main():
