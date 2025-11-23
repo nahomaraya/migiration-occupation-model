@@ -1,0 +1,177 @@
+Loading processed data...
+Starting shape: (35805107, 98)
+Memory usage: 8640.1 MB
+
+Starting Feature Engineering...
+
+==================================================
+A. EDUCATION & SKILL FEATURES
+==================================================
+
+[1] Processing DEGFIELD → is_stem...
+  ✓ is_stem flag created
+    STEM codes: [11, 13, 14, 21, 24, 25, 36, 37, 50, 51]
+    STEM proportion: 5.41%
+
+[2] Processing SPEAKENG → proficient_english...
+  ✓ proficient_english created
+    Proficient proportion: 96.65%
+
+==================================================
+B. ORIGIN REGION FEATURES
+==================================================
+
+[1] Processing BPL → origin_region (detailed)...
+  ✓ origin_region created
+
+  Origin region distribution:
+shape: (19, 2)
+┌─────────────────┬──────────┐
+│ origin_region   ┆ count    │
+│ ---             ┆ ---      │
+│ cat             ┆ u32      │
+╞═════════════════╪══════════╡
+│ US_Native       ┆ 30594251 │
+│ Mexico          ┆ 1266277  │
+│ Southeast_Asia  ┆ 564018   │
+│ East_Asia       ┆ 513198   │
+│ Caribbean       ┆ 429626   │
+│ …               ┆ …        │
+│ Middle_East     ┆ 98514    │
+│ Western_Europe  ┆ 58010    │
+│ Oceania         ┆ 32835    │
+│ Other           ┆ 24083    │
+│ Northern_Europe ┆ 18996    │
+└─────────────────┴──────────┘
+
+[2] Creating origin_development_level...
+  ✓ origin_development_level created
+
+  Development level distribution:
+shape: (7, 2)
+┌──────────────────────────┬──────────┐
+│ origin_development_level ┆ count    │
+│ ---                      ┆ ---      │
+│ str                      ┆ u32      │
+╞══════════════════════════╪══════════╡
+│ High_Income_Western      ┆ 30976270 │
+│ Latin_America            ┆ 2424613  │
+│ Developing_Asia          ┆ 990362   │
+│ Upper_Middle_Europe      ┆ 569670   │
+│ High_Income_Asia         ┆ 513198   │
+│ MENA_Africa              ┆ 306911   │
+│ Other                    ┆ 24083    │
+└──────────────────────────┴──────────┘
+
+==================================================
+C. MIGRATION FEATURES
+==================================================
+
+[1] ✓ years_in_us already exists
+    Mean for immigrants: 20.9 years
+
+[2] Creating age_at_arrival...
+  ✓ age_at_arrival created
+    Mean age at arrival: 22.5 years
+
+[3] Creating is_naturalized...
+  ✓ is_naturalized created
+    Naturalized proportion: 47.87%
+
+==================================================
+D. FAMILY/HOUSEHOLD FEATURES
+==================================================
+
+[1] Creating family_burden...
+  ✓ family_burden created (summing: ['nchild', 'nsibs'])
+    Mean family burden: 0.91
+
+[2] Creating is_married...
+  ✓ is_married created
+    Married proportion: 58.12%
+
+[3] ✓ has_children created
+
+==================================================
+F. INTERACTION FEATURES
+==================================================
+
+[1] Creating immigrant_x_education...
+  ✓ immigrant_x_education created
+
+[2] Creating immigrant_x_stem...
+  ✓ immigrant_x_stem created
+
+[3] Creating immigrant_x_english...
+  ✓ immigrant_x_english created
+
+[4] Creating tenure_x_education...
+  ✓ tenure_x_education created
+
+==================================================
+G. ONE-HOT ENCODING CATEGORICAL VARIABLES
+==================================================
+
+[Option A] Converting high-cardinality to Categorical dtype...
+  ✓ origin_region → Categorical dtype
+
+[Option B] One-hot encoding low-cardinality variables...
+  Processing sex...
+  ✓ sex one-hot encoded
+  Processing race...
+  ✓ race one-hot encoded
+
+==================================================
+H. DROPPING REDUNDANT COLUMNS
+==================================================
+  Dropped 56 columns
+  Remaining columns: 65
+
+==================================================
+FINAL CHECKS & SUMMARY
+==================================================
+
+Final shape: (35805107, 65)
+Final memory: 3961.0 MB
+
+Total nulls remaining: 0
+
+==================================================
+FINAL FEATURE LIST
+==================================================
+
+Target variables:
+  ✓ occscore
+  ✓ classwkr
+
+Key engineered features:
+  ✓ is_immigrant
+  ✓ years_in_us
+  ✓ citizenship_status
+  ✓ is_naturalized
+  ✓ age_at_arrival
+  ✓ is_stem
+  ✓ proficient_english
+  ✓ origin_region
+  ✓ family_burden
+  ✓ is_married
+  ✓ has_children
+  ✓ immigrant_x_education
+  ✓ immigrant_x_stem
+  ✓ immigrant_x_english
+  ✓ tenure_x_education
+
+All columns:
+['year', 'sample', 'hhwt', 'hhtype', 'region', 'stateicp', 'gq', 'ownershp', 'mortgage', 'multgen', 'perwt', 'relate', 'sex_1', 'sex_2', 'age', 'birthyr', 'race_1', 'race_2', 'race_3', 'race_4', 'race_5', 'race_6', 'race_7', 'race_8', 'race_9', 'bpl', 'bpld', 'ancestr1', 'educ', 'schltype', 'degfield', 'degfieldd', 'empstat', 'labforce', 'classwkr', 'occscore', 'hwsei', 'is_immigrant', 'years_in_us', 'citizenship_status', 'yrnatur_missing', 'migrate1_missing', 'migrate1d_missing', 'migplac1_missing', 'migcounty1_missing', 'degfield_missing', 'degfieldd_missing', 'countyicp_missing', 'city_missing', 'cityerr_missing', 'wrklstwk_missing', 'citypop_missing', 'is_stem', 'proficient_english', 'origin_region', 'origin_development_level', 'age_at_arrival', 'is_naturalized', 'family_burden', 'is_married', 'has_children', 'immigrant_x_education', 'immigrant_x_stem', 'immigrant_x_english', 'tenure_x_education']
+
+Saving to ipums_data_ml_ready.parquet...
+✓ Saved successfully!
+
+==================================================
+FEATURE ENGINEERING COMPLETE!
+==================================================
+Output: ipums_data_ml_ready.parquet
+Ready for modeling with 35,805,107 observations
+and 65 features
+
+Process finished with exit code 0

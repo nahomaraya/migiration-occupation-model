@@ -1,0 +1,4 @@
+*.parquet
+*.gz
+*.dta
+*.docx
