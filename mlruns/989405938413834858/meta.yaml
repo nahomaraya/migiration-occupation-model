@@ -1,0 +1,6 @@
+artifact_location: file:///C:/Users/lenovo/Documents/Skool/Data%20Science/Final%20Project/mlruns/989405938413834858
+creation_time: 1764215197280
+experiment_id: '989405938413834858'
+last_update_time: 1764215197280
+lifecycle_stage: active
+name: dml_leakage_debug

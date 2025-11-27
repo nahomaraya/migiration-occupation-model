@@ -1,0 +1,14 @@
+artifact_uri: file:///C:/Users/lenovo/Documents/Skool/Data%20Science/Final%20Project/mlruns/557344820011087572/4e05f7a65d2a4d3692ac07e48fe01cba/artifacts
+end_time: 1764201802095
+entry_point_name: ''
+experiment_id: '557344820011087572'
+lifecycle_stage: active
+run_id: 4e05f7a65d2a4d3692ac07e48fe01cba
+run_name: debug_run
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1764201786048
+status: 4
+tags: []
+user_id: lenovo

@@ -46,9 +46,14 @@ pd.Series, pd.Series, pd.Series, pd.Series]:
         dml_exclude.extend(exclude_cols)
 
     # Also exclude identifiers that shouldn't be features
-    standard_exclude = ['year', 'serial', 'pernum', 'hhwt', 'cluster',
-                        'strata', 'gq', 'sample', 'cbserial', 'histid',
-                        'multyear', 'sploc', 'sprule']
+    standard_exclude = [
+        'year', 'serial', 'pernum', 'hhwt', 'cluster', 'strata',
+        'gq', 'sample', 'cbserial', 'histid', 'multyear', 'sploc',
+        'sprule', 'perwt', 'citizenship_status', 'origin_development_level', 'origin_region',
+        'bpld', 'citizenship_status', 'age_at_arrival', 'years_in_us',
+        'immigrant_x_education', 'bpl', 'immigrant_x_english',
+        'yrnatur', 'yrimmig', 'is_naturalized', 'immigrant_x_stem', 'tenure_x_education'
+    ]
     dml_exclude.extend([c for c in standard_exclude if c not in dml_exclude])
 
     if verbose:

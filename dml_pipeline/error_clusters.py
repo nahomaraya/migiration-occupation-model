@@ -11,7 +11,7 @@ def analyze_high_error_clusters(
         t_eval: pd.Series,
         residuals_y: np.ndarray,
         residuals_t: np.ndarray,
-        error_percentile: float = 0.90,
+        error_percentile: float = 0.95,
         max_clusters: int = 10,
         use_full_clustering: bool = True,
         verbose: bool = True
