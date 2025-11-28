@@ -4,3 +4,9 @@
 *.docx
 *.pdf
 *.png
+*.csv
+mlruns/
+stratified_results/
+dml_plots/
+dml_results/
+dml_temp/
