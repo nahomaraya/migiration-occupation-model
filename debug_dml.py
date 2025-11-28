@@ -1,5 +1,5 @@
 from dml_pipeline.dml_debug import run_leakage_debug
-from dml_pipeline.mlflow_dml_experiment import run_dml_experiment, MLFLOW_AVAILABLE
+
 
 if __name__ == "__main__":
     # Run debug check
@@ -9,7 +9,7 @@ if __name__ == "__main__":
         outcome_col='occscore',
         weight_col='perwt',
         sample_size=10000,
-        exclude_cols=['year', 'sample', 'classwkr', 'hwsei', 'hhwt']
+        exclude_cols=['year', 'sample', 'hwsei', 'hhwt']
     )
     # results = run_dml_experiment(
     #     data_path="ipums_data_ml_ready.parquet",

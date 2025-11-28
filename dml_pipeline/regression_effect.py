@@ -53,7 +53,7 @@ def estimate_causal_effect(
     std_error = results.bse[1]
     t_stat = results.tvalues[1]
     p_value = results.pvalues[1]
-    ci_lower, ci_upper = results.conf_int().iloc[1]
+    ci_lower, ci_upper = results.conf_int()[1]
     r_squared = results.rsquared
 
     # Print publication-ready summary

@@ -18,8 +18,10 @@ from typing import Dict, List, Optional, Tuple
 import os
 
 from dml_pipeline.create_dml_sample import create_dml_sample
+from dml_pipeline.dml_debug import debug_high_error_clustering
 from dml_pipeline.dml_preprocess import preprocess_for_dml
-from dml_pipeline.error_clusters import analyze_high_error_clusters
+from dml_pipeline.error_clusters import high_error_clustering
+from dml_pipeline.metrics import plot_regression_diagnostics, plot_ate_results, export_ate_latex
 from dml_pipeline.regression_effect import estimate_causal_effect
 from dml_pipeline.train_outcome_model import train_outcome_model
 from dml_pipeline.train_treatment_model import train_treatment_model
@@ -99,13 +101,35 @@ def run_dml_pipeline(
         verbose=verbose
     )
 
+    plot_ate_results(
+        causal,
+        treatment_name="Immigration",
+        outcome_name="OCCSCORE",
+        save_path="ate_forest_plot.png"
+    )
+
+    plot_regression_diagnostics(
+        causal_results=causal,
+        residuals_y=res_y,
+        residuals_t=res_t,
+        save_path=None,
+        show_plot=True
+    )
+
+    # export_ate_latex(causal, "ate_table.tex")
     # Step 4: Clustering (optional) - Uses your perform_clustering!
     clusters = None
     if run_clustering:
-        clusters = analyze_high_error_clusters(
-            X_eval, y_eval, t_eval, res_y, res_t,
-            use_full_clustering=True,  # Use your full clustering analysis
-            verbose=verbose
+        high_error_clustering(
+            X_eval=X_eval,
+            y_eval=y_eval,
+            t_eval=t_eval,
+            residuals_y=res_y,  # from Step 1
+            residuals_t=res_t,  # from Step 2
+            w_eval=w_eval,
+            error_percentile=0.95,  # top 10% errors
+            max_clusters=8,
+            verbose=True
         )
 
     results = {
@@ -117,53 +141,16 @@ def run_dml_pipeline(
         'ci_lower': causal['ci_lower'],
         'ci_upper': causal['ci_upper'],
         'significant': causal['significant_05'],
-
-        # Models
-        'outcome_model': model_y,
-        'treatment_model': model_t,
-
-        # Model metrics
-        'outcome_metrics': metrics_y,
-        'treatment_metrics': metrics_t,
-
-        # Residuals
-        'residuals_y': res_y,
-        'residuals_t': res_t,
+        'outcome_r2': metrics_y.get('test_r2', None),
+        'treatment_accuracy': metrics_t.get('test_accuracy', None),
         'propensity_scores': propensity,
-
-        # Clustering
         'cluster_results': clusters,
 
         # Metadata
-        'n_samples': len(X_train) + len(X_eval)
+
     }
 
-    # Save summary
-    if save_dir:
-        summary_df = pd.DataFrame([{
-            'causal_effect': results['causal_effect'],
-            'standard_error': results['standard_error'],
-            't_statistic': results['t_statistic'],
-            'p_value': results['p_value'],
-            'ci_lower': results['ci_lower'],
-            'ci_upper': results['ci_upper'],
-            'significant': results['significant'],
-            'n_samples': results['n_samples'],
-            'outcome_r2': metrics_y.get('test_r2', None),
-            'treatment_accuracy': metrics_t.get('test_accuracy', None)
-        }])
-        summary_df.to_csv(f'{save_dir}/dml_summary.csv', index=False)
 
-        if verbose:
-            print(f"\n  ✓ Results saved to: {save_dir}/")
-
-    if verbose:
-        print("\n" + "=" * 80)
-        print("DML COMPLETE!")
-        print("=" * 80)
-        print(f"\n  Causal Effect: {results['causal_effect']:.4f}")
-        print(f"  95% CI: [{results['ci_lower']:.4f}, {results['ci_upper']:.4f}]")
-        print(f"  P-value: {results['p_value']:.6f}")
 
     return results
 

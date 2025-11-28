@@ -1,0 +1,2 @@
+causal_effect,standard_error,t_statistic,p_value,ci_lower,ci_upper,significant,n_samples,outcome_r2,treatment_accuracy
+-0.8364441130360356,0.02950199663547607,-28.352118786096458,8.627364952597592e-177,-0.8942670030068273,-0.778621223065244,True,3580510,,

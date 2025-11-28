@@ -28,7 +28,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from typing import Dict, Optional, Tuple
 import warnings
 
-from dml_pipeline.plot_casual_results import plot_ate_results, export_ate_latex, plot_regression_diagnostics
+from dml_pipeline.metrics import plot_ate_results, export_ate_latex, plot_regression_diagnostics
 
 warnings.filterwarnings('ignore')
 
@@ -608,10 +608,10 @@ def debug_high_error_clustering(
 
     # Find optimal K
     optimal_k_silhouette = K_range[np.argmax(silhouette_scores)]
-    optimal_k_db = K_range[np.argmin(davies_bouldin_scores)]
+    # optimal_k_db = K_range[np.argmin(davies_bouldin_scores)]
 
     print(f"\n  Optimal K (Silhouette): {optimal_k_silhouette}")
-    print(f"  Optimal K (Davies-Bouldin): {optimal_k_db}")
+    # print(f"  Optimal K (Davies-Bouldin): {optimal_k_db}")
 
     # Use silhouette-based optimal K
     optimal_k = optimal_k_silhouette
@@ -627,13 +627,13 @@ def debug_high_error_clustering(
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
     # Elbow plot
-    axes[0].plot(K_range, inertias, 'bo-', linewidth=2, markersize=8)
-    axes[0].axvline(x=optimal_k, color='r', linestyle='--', label=f'Optimal K={optimal_k}')
-    axes[0].set_xlabel('Number of Clusters (K)')
-    axes[0].set_ylabel('Inertia')
-    axes[0].set_title('Elbow Method')
-    axes[0].legend()
-    axes[0].grid(True, alpha=0.3)
+    # axes[0].plot(K_range, inertias, 'bo-', linewidth=2, markersize=8)
+    # axes[0].axvline(x=optimal_k, color='r', linestyle='--', label=f'Optimal K={optimal_k}')
+    # axes[0].set_xlabel('Number of Clusters (K)')
+    # axes[0].set_ylabel('Inertia')
+    # axes[0].set_title('Elbow Method')
+    # axes[0].legend()
+    # axes[0].grid(True, alpha=0.3)
 
     # Silhouette plot
     axes[1].plot(K_range, silhouette_scores, 'go-', linewidth=2, markersize=8)
@@ -645,13 +645,13 @@ def debug_high_error_clustering(
     axes[1].grid(True, alpha=0.3)
 
     # Davies-Bouldin plot
-    axes[2].plot(K_range, davies_bouldin_scores, 'ro-', linewidth=2, markersize=8)
-    axes[2].axvline(x=optimal_k, color='b', linestyle='--', label=f'Optimal K={optimal_k}')
-    axes[2].set_xlabel('Number of Clusters (K)')
-    axes[2].set_ylabel('Davies-Bouldin Score')
-    axes[2].set_title('Davies-Bouldin Score (Lower = Better)')
-    axes[2].legend()
-    axes[2].grid(True, alpha=0.3)
+    # axes[2].plot(K_range, davies_bouldin_scores, 'ro-', linewidth=2, markersize=8)
+    # axes[2].axvline(x=optimal_k, color='b', linestyle='--', label=f'Optimal K={optimal_k}')
+    # axes[2].set_xlabel('Number of Clusters (K)')
+    # axes[2].set_ylabel('Davies-Bouldin Score')
+    # axes[2].set_title('Davies-Bouldin Score (Lower = Better)')
+    # axes[2].legend()
+    # axes[2].grid(True, alpha=0.3)
 
     plt.tight_layout()
     plt.savefig('cluster_selection_metrics.png', dpi=150, bbox_inches='tight')
@@ -671,23 +671,23 @@ def debug_high_error_clustering(
     high_error['cluster_kmeans'] = kmeans_final.fit_predict(X_scaled)
 
     # Hierarchical
-    hierarchical = AgglomerativeClustering(n_clusters=optimal_k, linkage='ward')
-    high_error['cluster_hier'] = hierarchical.fit_predict(X_scaled)
+    # hierarchical = AgglomerativeClustering(n_clusters=optimal_k, linkage='ward')
+    # high_error['cluster_hier'] = hierarchical.fit_predict(X_scaled)
 
     # Metrics
     kmeans_silhouette = silhouette_score(X_scaled, high_error['cluster_kmeans'])
-    hier_silhouette = silhouette_score(X_scaled, high_error['cluster_hier'])
+    # hier_silhouette = silhouette_score(X_scaled, high_error['cluster_hier'])
 
     print(f"\n  K-Means Silhouette: {kmeans_silhouette:.4f}")
-    print(f"  Hierarchical Silhouette: {hier_silhouette:.4f}")
+    # print(f"  Hierarchical Silhouette: {hier_silhouette:.4f}")
 
     # Use better performing method
-    if kmeans_silhouette >= hier_silhouette:
-        high_error['cluster'] = high_error['cluster_kmeans']
-        best_method = 'K-Means'
-    else:
-        high_error['cluster'] = high_error['cluster_hier']
-        best_method = 'Hierarchical'
+    # if kmeans_silhouette >= hier_silhouette:
+    high_error['cluster'] = high_error['cluster_kmeans']
+    best_method = 'K-Means'
+    # else:
+    #     high_error['cluster'] = high_error['cluster_hier']
+    #     best_method = 'Hierarchical'
 
     print(f"\n  → Using {best_method} (higher silhouette)")
 

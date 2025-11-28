@@ -47,6 +47,7 @@ pd.Series, pd.Series, pd.Series, pd.Series]:
 
     # Also exclude identifiers that shouldn't be features
     standard_exclude = [
+        'classwkr', 'hwsei',
         'year', 'serial', 'pernum', 'hhwt', 'cluster', 'strata',
         'gq', 'sample', 'cbserial', 'histid', 'multyear', 'sploc',
         'sprule', 'perwt', 'citizenship_status', 'origin_development_level', 'origin_region',

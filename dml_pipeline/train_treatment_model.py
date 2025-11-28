@@ -6,7 +6,7 @@ import os
 import polars as pl
 from typing import Dict, List, Optional, Tuple
 from models.xgboost import check_gpu_availability
-from metrics import evaluate_model_comprehensive
+from metrics.evaluate_model_comprehensive import evaluate_model_comprehensive
 
 def train_treatment_model(
         X_train: pd.DataFrame,
@@ -56,8 +56,8 @@ def train_treatment_model(
     if verbose:
         print(f"\n  Training XGBoost Classifier on {params['device']}...")
 
-    dtrain = xgb.DMatrix(X_train, label=t_train, weight=w_train)
-    deval = xgb.DMatrix(X_eval, label=t_eval, weight=w_eval)
+    dtrain = xgb.DMatrix(X_train, label=t_train, weight=w_train, enable_categorical=True)
+    deval = xgb.DMatrix(X_eval, label=t_eval, weight=w_eval, enable_categorical=True)
 
     # Train with evaluation tracking
     evals_result = {}
@@ -95,7 +95,7 @@ def train_treatment_model(
         if verbose:
             print("\n  Evaluating model with comprehensive metrics...")
 
-        metrics = evaluate_model_comprehensive(
+        evaluate_model_comprehensive(
             y_train_true=t_train,
             y_train_pred=t_train_pred,
             y_test_true=t_eval,
@@ -108,7 +108,7 @@ def train_treatment_model(
             class_names=['Native', 'Immigrant'],
             feature_importance=feature_importance,
             evals_result=evals_result,
-            save_dir=f"{save_dir}/treatment_model" if save_dir else None
+            save_dir=None
         )
     else:
         # Just calculate basic metrics without plots

@@ -1,13 +1,11 @@
-
 import xgboost as xgb
 import pandas as pd
 import numpy as np
 import gc
-import os
-import polars as pl
 from typing import Dict, List, Optional, Tuple
 from models.xgboost import check_gpu_availability
-from metrics import evaluate_model_comprehensive
+from metrics.evaluate_model_comprehensive import evaluate_model_comprehensive
+
 def train_outcome_model(
         X_train: pd.DataFrame,
         y_train: pd.Series,
@@ -95,7 +93,7 @@ def train_outcome_model(
         if verbose:
             print("\n  Evaluating model with comprehensive metrics...")
 
-        metrics = evaluate_model_comprehensive(
+            evaluate_model_comprehensive(
             y_train_true=y_train,
             y_train_pred=y_train_pred,
             y_test_true=y_eval,
@@ -105,7 +103,7 @@ def train_outcome_model(
             task='regression',
             feature_importance=feature_importance,
             evals_result=evals_result,
-            save_dir=f"{save_dir}/outcome_model" if save_dir else None
+            save_dir=None
         )
     else:
         # Just calculate basic metrics without plots

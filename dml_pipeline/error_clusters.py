@@ -1,164 +1,347 @@
-import xgboost as xgb
-import pandas as pd
 import numpy as np
-from typing import Dict
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans, MiniBatchKMeans
+from sklearn.metrics import silhouette_score, davies_bouldin_score
+from sklearn.decomposition import PCA
+from typing import Dict, Optional
 
-from models.clustering import perform_clustering
 
-def analyze_high_error_clusters(
+def high_error_clustering(
         X_eval: pd.DataFrame,
         y_eval: pd.Series,
         t_eval: pd.Series,
         residuals_y: np.ndarray,
         residuals_t: np.ndarray,
-        error_percentile: float = 0.95,
-        max_clusters: int = 10,
-        use_full_clustering: bool = True,
-        verbose: bool = True
+        w_eval: Optional[pd.Series] = None,
+        error_percentile: float = 0.90,
+        max_clusters: int = 8,
+        sample_size_clustering: int = 50000,
+        sample_size_plot: int = 5000,
+        verbose: bool = True,
+        random_seed: int = 42
 ) -> Dict:
     """
-    Step 4: Cluster workers with high prediction errors.
-
-    Uses your existing perform_clustering() function for full analysis
-    including K-Means, Hierarchical, silhouette scores, and visualizations.
-
-    These are people whose occupational success CANNOT be explained
-    by our variables - potentially interesting subgroups.
+    Memory-optimized clustering analysis on high-error residual cases.
+    Uses sampling for large datasets.
     """
-    if verbose:
-        print("\n" + "=" * 80)
-        print("STEP 4: CLUSTER HIGH-ERROR CASES")
-        print("=" * 80)
-        print("\n  Goal: Find subgroups where model failed badly")
 
-    # Create analysis dataframe
-    df = X_eval.copy()
-    df['y'] = y_eval.values
-    df['t'] = t_eval.values
-    df['residual_y'] = residuals_y
-    df['residual_t'] = residuals_t
-    df['abs_error'] = np.abs(residuals_y)
+    rng = np.random.default_rng(random_seed)
 
-    # Filter to high-error cases (top 10% errors)
-    threshold = df['abs_error'].quantile(error_percentile)
-    high_error = df[df['abs_error'] > threshold].copy()
+    print("=" * 70)
+    print("STEP 4: HIGH-ERROR CLUSTERING (OPTIMIZED)")
+    print("=" * 70)
 
-    if verbose:
-        print(f"\n  Error threshold (top {(1 - error_percentile) * 100:.0f}%): {threshold:.2f}")
-        print(f"  High-error cases: {len(high_error):,}")
+    # ========================================
+    # 4.1: Identify High-Error Cases (memory efficient)
+    # ========================================
+    print("\n4.1: Identifying High-Error Cases")
+    print("-" * 50)
 
-    # Select numeric features for clustering (exclude metadata columns)
-    exclude_from_clustering = ['y', 't', 'residual_y', 'residual_t', 'abs_error']
-    numeric_cols = high_error.select_dtypes(include=[np.number]).columns.tolist()
-    cluster_cols = [c for c in numeric_cols if c not in exclude_from_clustering]
+    n_total = len(y_eval)
+    abs_errors = np.abs(residuals_y)
+    threshold = np.percentile(abs_errors, error_percentile * 100)
+    high_error_mask = abs_errors > threshold
+    n_high_error = high_error_mask.sum()
 
-    if len(cluster_cols) < 2 or len(high_error) < 100:
-        if verbose:
-            print("  ⚠ Insufficient data for clustering")
-        return {'high_error_cases': high_error, 'cluster_results': None}
+    print(f"  Total samples: {n_total:,}")
+    print(f"  Error threshold (top {(1 - error_percentile) * 100:.0f}%): {threshold:.2f}")
+    print(f"  High-error cases: {n_high_error:,}")
 
-    # Limit features for clustering (top 20 by variance)
-    feature_variance = high_error[cluster_cols].var().sort_values(ascending=False)
-    top_cluster_cols = feature_variance.head(20).index.tolist()
+    # Get indices of high-error cases
+    high_error_idx = np.where(high_error_mask)[0]
 
-    if verbose:
-        print(f"  Using top {len(top_cluster_cols)} features for clustering")
-
-    # Prepare data for clustering
-    X_cluster = high_error[top_cluster_cols].fillna(0)
-
-    # Split for clustering (80/20 for train/val as your clustering code expects)
-    from sklearn.model_selection import train_test_split
-    X_cluster_train, X_cluster_val = train_test_split(
-        X_cluster, test_size=0.2, random_state=42
-    )
-
-    if use_full_clustering and len(X_cluster_train) >= 100:
-        if verbose:
-            print("\n  Running full clustering analysis with your perform_clustering()...")
-            print("  " + "-" * 60)
-
-        # Use your existing clustering function!
-        cluster_results = perform_clustering(
-            x_train=X_cluster_train,
-            x_val=X_cluster_val,
-            y_train=None,  # Unsupervised
-            y_val=None,
-            max_clusters=max_clusters
-        )
-
-        # Add cluster labels back to high_error dataframe
-        # Re-cluster full dataset with optimal K
-        from sklearn.cluster import KMeans
-        optimal_k = cluster_results['optimal_k']
-        kmeans_full = KMeans(n_clusters=optimal_k, random_state=42, n_init=10)
-        high_error['cluster'] = kmeans_full.fit_predict(X_cluster)
-
+    # ========================================
+    # 4.2: Sample if needed (KEY OPTIMIZATION)
+    # ========================================
+    if n_high_error > sample_size_clustering:
+        print(f"\n  Sampling {sample_size_clustering:,} from {n_high_error:,} high-error cases")
+        sample_idx = rng.choice(high_error_idx, sample_size_clustering, replace=False)
+        using_sample = True
     else:
-        # Fallback to simple MiniBatchKMeans if dataset too small
-        if verbose:
-            print("\n  Using simplified clustering (dataset too small for full analysis)")
+        sample_idx = high_error_idx
+        using_sample = False
 
-        from sklearn.cluster import MiniBatchKMeans
-        kmeans = MiniBatchKMeans(n_clusters=4, random_state=42, n_init=3)
-        high_error['cluster'] = kmeans.fit_predict(X_cluster)
+    # Build minimal dataframe (only what we need)
+    high_error = pd.DataFrame({
+        'y_actual': y_eval.iloc[sample_idx].values,
+        't_actual': t_eval.iloc[sample_idx].values,
+        'residual_y': residuals_y[sample_idx],
+        'residual_t': residuals_t[sample_idx],
+        'abs_error': abs_errors[sample_idx]
+    }, index=sample_idx)
 
-        cluster_results = {
-            'optimal_k': 4,
-            'kmeans_model': kmeans,
-            'metrics': {'kmeans': {'silhouette': None}}
+    # ========================================
+    # 4.3: Compare High vs Low Error (on full data, no df needed)
+    # ========================================
+    print("\n4.2: High vs Low Error Comparison")
+    print("-" * 50)
+
+    low_error_mask = ~high_error_mask
+
+    comparisons = [
+        ('Avg Outcome', y_eval.values[high_error_mask].mean(), y_eval.values[low_error_mask].mean()),
+        ('Avg |Error|', abs_errors[high_error_mask].mean(), abs_errors[low_error_mask].mean()),
+        ('Treatment %', t_eval.values[high_error_mask].mean() * 100, t_eval.values[low_error_mask].mean() * 100),
+    ]
+
+    print(f"\n  {'Metric':<20} {'High Error':>12} {'Low Error':>12} {'Diff':>10}")
+    print("  " + "-" * 55)
+    for name, high_val, low_val in comparisons:
+        print(f"  {name:<20} {high_val:>12.2f} {low_val:>12.2f} {high_val - low_val:>+10.2f}")
+
+    over_pred = (residuals_y[high_error_mask] < 0).sum()
+    under_pred = (residuals_y[high_error_mask] > 0).sum()
+    print(f"\n  Over-predicted: {over_pred:,} ({over_pred / n_high_error * 100:.1f}%)")
+    print(f"  Under-predicted: {under_pred:,} ({under_pred / n_high_error * 100:.1f}%)")
+
+    # ========================================
+    # 4.4: Select Features for Clustering
+    # ========================================
+    print("\n4.3: Feature Selection")
+    print("-" * 50)
+
+    # Get numeric features only
+    X_sample = X_eval.iloc[sample_idx]
+    numeric_cols = X_sample.select_dtypes(include=[np.number]).columns.tolist()
+
+    # Fast variance calculation on sample
+    variances = X_sample[numeric_cols].var()
+    top_features = variances.nlargest(20).index.tolist()
+
+    print(f"  Using top {len(top_features)} features by variance")
+
+    # Prepare clustering data
+    X_cluster = X_sample[top_features].fillna(0).values
+
+    # Standardize
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X_cluster)
+
+    print(f"  Prepared: {X_scaled.shape[0]:,} samples × {X_scaled.shape[1]} features")
+
+    # ========================================
+    # 4.5: Find Optimal K (use MiniBatchKMeans for speed)
+    # ========================================
+    print("\n4.4: Finding Optimal K")
+    print("-" * 50)
+
+    K_range = range(2, max_clusters + 1)
+    silhouette_scores = []
+
+    # Use MiniBatchKMeans for large datasets
+    use_minibatch = len(X_scaled) > 10000
+
+    print(f"\n  {'K':>3} {'Silhouette':>12} {'Inertia':>12}")
+    print("  " + "-" * 30)
+
+    for k in K_range:
+        if use_minibatch:
+            model = MiniBatchKMeans(n_clusters=k, random_state=random_seed,
+                                    batch_size=1024, n_init=3)
+        else:
+            model = KMeans(n_clusters=k, random_state=random_seed, n_init=10)
+
+        labels = model.fit_predict(X_scaled)
+
+        # Silhouette on subsample for speed
+        if len(X_scaled) > 10000:
+            sil_idx = rng.choice(len(X_scaled), 10000, replace=False)
+            sil = silhouette_score(X_scaled[sil_idx], labels[sil_idx])
+        else:
+            sil = silhouette_score(X_scaled, labels)
+
+        silhouette_scores.append(sil)
+        print(f"  {k:>3} {sil:>12.4f} {model.inertia_:>12.1f}")
+
+    optimal_k = K_range[np.argmax(silhouette_scores)]
+    print(f"\n  → Optimal K = {optimal_k}")
+
+    # ========================================
+    # 4.6: Fit Final Model
+    # ========================================
+    print("\n4.5: Fitting Final Model")
+    print("-" * 50)
+
+    if use_minibatch:
+        kmeans_final = MiniBatchKMeans(n_clusters=optimal_k, random_state=random_seed,
+                                       batch_size=1024, n_init=5)
+    else:
+        kmeans_final = KMeans(n_clusters=optimal_k, random_state=random_seed, n_init=10)
+
+    high_error['cluster'] = kmeans_final.fit_predict(X_scaled)
+
+    final_silhouette = silhouette_scores[optimal_k - 2]
+    print(f"  Silhouette Score: {final_silhouette:.4f}")
+
+    # ========================================
+    # 4.7: Cluster Profiles
+    # ========================================
+    print("\n4.6: Cluster Profiles")
+    print("=" * 70)
+
+    cluster_profiles = []
+
+    for cid in range(optimal_k):
+        mask = high_error['cluster'] == cid
+        cd = high_error[mask]
+        n = len(cd)
+
+        profile = {
+            'cluster': cid,
+            'n': n,
+            'pct': n / len(high_error) * 100,
+            'avg_outcome': cd['y_actual'].mean(),
+            'avg_residual': cd['residual_y'].mean(),
+            'treatment_pct': cd['t_actual'].mean() * 100,
+            'avg_abs_error': cd['abs_error'].mean(),
+            'over_predicted_pct': (cd['residual_y'] < 0).mean() * 100
         }
+        cluster_profiles.append(profile)
 
-    # Analyze cluster profiles with immigration context
+        # Determine type
+        if profile['avg_residual'] > 5:
+            ctype, emoji = "OVERACHIEVERS", "📈"
+        elif profile['avg_residual'] < -5:
+            ctype, emoji = "UNDERACHIEVERS", "📉"
+        else:
+            ctype, emoji = "MODERATE", "📊"
+
+        print(f"""
+  CLUSTER {cid}: {ctype} {emoji}
+  ├─ Size: {n:,} ({profile['pct']:.1f}%)
+  ├─ Avg Outcome: {profile['avg_outcome']:.1f}
+  ├─ Avg Residual: {profile['avg_residual']:+.2f}
+  ├─ Treatment %: {profile['treatment_pct']:.1f}%
+  └─ Over-predicted: {profile['over_predicted_pct']:.1f}%""")
+
+        # Top features for this cluster
+        cluster_feat_means = X_sample.loc[cd.index, top_features].mean()
+        overall_feat_means = X_sample[top_features].mean()
+        diffs = (cluster_feat_means - overall_feat_means).abs().nlargest(3)
+
+        print("      Top features vs mean:")
+        for feat in diffs.index:
+            cv, ov = cluster_feat_means[feat], overall_feat_means[feat]
+            arrow = "↑" if cv > ov else "↓"
+            print(f"        {arrow} {feat}: {cv:.2f} (avg: {ov:.2f})")
+
+    profiles_df = pd.DataFrame(cluster_profiles)
+
+    # ========================================
+    # 4.8: Heterogeneous Effects by Cluster
+    # ========================================
+    print("\n" + "-" * 50)
+    print("4.7: Treatment Effects by Cluster")
+    print("-" * 50)
+
+    import statsmodels.api as sm
+
+    print(f"\n  {'Cluster':>7} {'N':>7} {'Effect':>10} {'SE':>8} {'p-val':>10}")
+    print("  " + "-" * 45)
+
+    for cid in range(optimal_k):
+        cd = high_error[high_error['cluster'] == cid]
+        res_y = cd['residual_y'].values
+        res_t = cd['residual_t'].values
+
+        if np.std(res_t) > 0.01:
+            X_ols = sm.add_constant(res_t)
+            fit = sm.OLS(res_y, X_ols).fit(cov_type='HC1')
+            eff, se, pval = fit.params[1], fit.bse[1], fit.pvalues[1]
+            sig = "***" if pval < 0.001 else "**" if pval < 0.01 else "*" if pval < 0.05 else ""
+            print(f"  {cid:>7} {len(cd):>7,} {eff:>+10.3f} {se:>8.3f} {pval:>10.4f} {sig}")
+        else:
+            print(f"  {cid:>7} {len(cd):>7,} {'N/A':>10}")
+
+    # ========================================
+    # 4.9: Visualizations (SAMPLED)
+    # ========================================
+    print("\n" + "-" * 50)
+    print("4.8: Generating Plots")
+    print("-" * 50)
+
+    # Sample for plotting
+    if len(high_error) > sample_size_plot:
+        plot_idx = rng.choice(len(high_error), sample_size_plot, replace=False)
+    else:
+        plot_idx = np.arange(len(high_error))
+
+    X_plot = X_scaled[plot_idx]
+    clusters_plot = high_error['cluster'].values[plot_idx]
+    residuals_plot = high_error['residual_y'].values[plot_idx]
+
+    # PCA for visualization
+    pca = PCA(n_components=2, random_state=random_seed)
+    X_pca = pca.fit_transform(X_plot)
+
+    exp_var = pca.explained_variance_ratio_.sum() * 100
+    print(f"  PCA explained variance: {exp_var:.1f}%")
+
+    # Create figure
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4))
+
+    # Plot 1: Silhouette scores
+    axes[0].plot(list(K_range), silhouette_scores, 'o-', color='#4878A8', lw=2, ms=8)
+    axes[0].axvline(optimal_k, color='#D55E00', ls='--', lw=1.5, label=f'K={optimal_k}')
+    axes[0].set_xlabel('Number of Clusters')
+    axes[0].set_ylabel('Silhouette Score')
+    axes[0].set_title('(A) Cluster Selection')
+    axes[0].legend()
+    axes[0].grid(True, alpha=0.3)
+
+    # Plot 2: PCA by cluster
+    scatter1 = axes[1].scatter(X_pca[:, 0], X_pca[:, 1], c=clusters_plot,
+                               cmap='viridis', alpha=0.5, s=15, rasterized=True)
+    axes[1].set_xlabel(f'PC1 ({pca.explained_variance_ratio_[0] * 100:.1f}%)')
+    axes[1].set_ylabel(f'PC2 ({pca.explained_variance_ratio_[1] * 100:.1f}%)')
+    axes[1].set_title('(B) Clusters')
+    plt.colorbar(scatter1, ax=axes[1], label='Cluster')
+
+    # Plot 3: PCA by residual
+    scatter2 = axes[2].scatter(X_pca[:, 0], X_pca[:, 1], c=residuals_plot,
+                               cmap='RdYlGn', alpha=0.5, s=15,
+                               vmin=-20, vmax=20, rasterized=True)
+    axes[2].set_xlabel(f'PC1 ({pca.explained_variance_ratio_[0] * 100:.1f}%)')
+    axes[2].set_ylabel(f'PC2 ({pca.explained_variance_ratio_[1] * 100:.1f}%)')
+    axes[2].set_title('(C) Residuals')
+    plt.colorbar(scatter2, ax=axes[2], label='Residual')
+
+    # Add note about sampling
+    if using_sample or len(high_error) > sample_size_plot:
+        note = f'Note: Plots show {len(plot_idx):,} sampled points from {n_high_error:,} high-error cases'
+        fig.text(0.5, 0.01, note, ha='center', fontsize=8, style='italic')
+
+    plt.tight_layout(rect=[0, 0.03, 1, 1])
+    plt.savefig('cluster_analysis.png', dpi=150, bbox_inches='tight')
+
     if verbose:
-        print("\n" + "=" * 80)
-        print("CLUSTER PROFILES (Immigration Analysis)")
-        print("=" * 80)
+        plt.show()
+    plt.close()
 
-    optimal_k = cluster_results['optimal_k']
+    print("  ✓ Saved: cluster_analysis.png")
 
-    for cluster_id in range(optimal_k):
-        cluster_data = high_error[high_error['cluster'] == cluster_id]
-        n = len(cluster_data)
-
-        if n == 0:
-            continue
-
-        immigrant_pct = cluster_data['t'].mean() * 100
-        avg_score = cluster_data['y'].mean()
-        avg_residual = cluster_data['residual_y'].mean()
-
-        if verbose:
-            print(f"\n  Cluster {cluster_id} (n={n:,}, {n / len(high_error) * 100:.1f}% of high-error cases):")
-            print(f"    Immigrant %: {immigrant_pct:.1f}%")
-            print(f"    Avg OCCSCORE: {avg_score:.1f}")
-            print(f"    Avg Residual: {avg_residual:+.2f}")
-
-            # Interpretation
-            if avg_residual > 5:
-                if immigrant_pct > 50:
-                    print("    → IMMIGRANT OVERACHIEVERS: Doing much better than predicted!")
-                else:
-                    print("    → NATIVE OVERACHIEVERS: Doing much better than predicted!")
-            elif avg_residual < -5:
-                if immigrant_pct > 50:
-                    print("    → IMMIGRANT UNDERACHIEVERS: Doing worse than predicted")
-                else:
-                    print("    → NATIVE UNDERACHIEVERS: Doing worse than predicted")
-            else:
-                print("    → MODERATE ERROR: Model errors are average")
-
-            # Top distinguishing features
-            print(f"    Top features:")
-            for col in top_cluster_cols[:3]:
-                val = cluster_data[col].mean()
-                print(f"      - {col}: {val:.2f}")
+    # ========================================
+    # Summary
+    # ========================================
+    print("\n" + "=" * 70)
+    print("SUMMARY")
+    print("=" * 70)
+    print(f"  High-error cases: {n_high_error:,}")
+    print(f"  Clustered sample: {len(high_error):,}")
+    print(f"  Optimal K: {optimal_k}")
+    print(f"  Silhouette: {final_silhouette:.4f}")
 
     return {
-        'high_error_cases': high_error,
-        'cluster_results': cluster_results,
+        'high_error_df': high_error,
+        'cluster_profiles': profiles_df,
+        'optimal_k': optimal_k,
+        'kmeans_model': kmeans_final,
+        'silhouette_score': final_silhouette,
+        'pca_model': pca,
+        'scaler': scaler,
+        'feature_cols': top_features,
         'threshold': threshold,
-        'optimal_k': cluster_results['optimal_k'],
-        'cluster_features': top_cluster_cols
+        'n_total_high_error': n_high_error
     }
-
