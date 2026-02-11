@@ -1,7 +1,7 @@
 ﻿# IPUMS Immigration Study - Occupational Outcomes Prediction
 
 A machine learning pipeline using XGBoost to predict occupational outcomes for immigrants and natives in the US labor force, based on IPUMS Census microdata.
-<a href="/docs/migiration-occupation-model.pdf">Download paper</a>).
+<a href="docs/migration-occupation-model.pdf">Download paper</a>).
 
 ### Prerequisites
 ```bash
@@ -93,4 +93,5 @@ print(f"R²: {results['test_r2']:.4f}")
 # Done! Model trained, metrics calculated, plots saved.
 
 ```
+
 
